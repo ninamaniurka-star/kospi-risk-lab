@@ -315,14 +315,14 @@ footer{border-top:1px solid var(--line);color:var(--muted);font-size:13px;paddin
   </details>
 
   <section class="card" id="data" style="margin-bottom:18px">
-    <h2>Use real prices</h2>
-    <p class="sub">The page opens with synthetic sample prices so every chart works. To load real data, run the Colab notebook, which saves <code>kospi_prices.csv</code>, then drop that file here. Everything recalculates in your browser.</p>
+    <h2>The data</h2>
+    <p class="sub">Daily closing prices for the five stocks and EUR/KRW come from Yahoo Finance and refresh automatically every weekday after the Korean market closes. The label at the top shows the latest date loaded. To test the model on a different period or other prices, drop your own CSV below: everything recalculates in your browser and nothing is uploaded anywhere.</p>
     <div class="drop" id="drop"><label for="file" style="cursor:pointer">Drop a CSV here or <u>choose a file</u></label><input type="file" id="file" accept=".csv,text/csv" style="display:none"></div>
     <div class="err" id="ferr"></div>
     <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--ink2)">Expected format</summary>
       <p style="margin-top:8px">One header row, then one row per trading day, oldest or newest first. Column 1 is the date and columns 2–7 are prices: the 5 stocks in KRW in this order, then EUR/KRW (won per euro). At least 60 rows.</p>
       <div class="math" style="font-family:ui-monospace,Menlo,monospace;font-size:13px">Date,Samsung Electronics,SK Hynix,Hyundai Motor,NAVER,KB Financial,EUR/KRW<br>2024-11-20,55600,180200,212000,189500,80100,1459.8</div>
-      <button class="btn" id="useSample">Back to sample data</button></details>
+      <button class="btn" id="useSample">Show synthetic sample data</button></details>
   </section>
 </div>
 <footer><div class="wrap">Educational model by Nina Maniurka. Tickers: 005930.KS, 000660.KS, 005380.KS, 035420.KS, 105560.KS, EURKRW=X. Not investment advice.</div></footer>
