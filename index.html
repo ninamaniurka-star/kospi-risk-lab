@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KOSPI Risk Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE work: a risk desk's live report, dense and exact
+   IDEA the risk terminal a trader opens before the morning meeting: levers on the left, the loss distribution drawn large
+   PICTURE a fan of simulated portfolio paths plus the P&L distribution with its tail lit up
+   COLOUR deep plum ground, violet for the model, hot pink for the tail, teal for the currency
+   TYPE Sora display + Inter text
+   LAYOUT laptop: controls column | fan + histogram; phone: title, figures, chart, controls */
+:root{color-scheme:dark;--bg:#120d18;--panel:#1b1424;--panel2:#231a2e;--line:#33283f;--ink:#f4ecf7;--ink2:#c9bbd2;--muted:#9a8ca4;--violet:#9273e6;--lilac:#c8b6ff;--pink:#e5579d;--teal:#16a58c;--amber:#b97e00;--blue:#3f86e0}
+*{box-sizing:border-box;min-width:0}
+html{scroll-padding-top:76px;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:Sora,Inter,sans-serif;letter-spacing:-.02em;line-height:1.1;margin:0}
+h1{font:700 clamp(32px,4.4vw,52px)/1.04 Syne,Inter,sans-serif;letter-spacing:-.025em;text-wrap:balance}
+h2{font-family:Syne,Inter,sans-serif;font-weight:700;font-size:25px;letter-spacing:-.015em}
+h2{margin-bottom:6px;text-wrap:balance}
+h3{font-size:17px;font-weight:600;margin:22px 0 6px}
+p{margin:0 0 10px;max-width:70ch}
+.wrap{max-width:1280px;margin:0 auto;padding:0 max(3vw,16px)}
+header{padding:30px 0 18px;border-bottom:1px solid var(--line)}
+nav.top{border-bottom:1px solid var(--line);background:#0e0a13;position:sticky;top:0;z-index:5}
+.nav{display:flex;justify-content:space-between;align-items:center;gap:8px 24px;flex-wrap:wrap;min-height:58px;padding-top:6px;padding-bottom:6px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;font:600 17px Inter,system-ui,sans-serif;letter-spacing:-.01em}
+.links{display:flex;flex-wrap:wrap;gap:4px 18px}
+.links a{color:var(--ink2);text-decoration:none;font-size:14px;padding:6px 0}
+.links a:hover{color:var(--lilac)}
+.hero{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:28px;align-items:stretch}
+.by{color:var(--muted);font-size:14px;margin-top:12px}
+.lede.voice{color:var(--ink);font-size:18px;line-height:1.5;max-width:60ch}
+.lede.tech{font-size:14px;color:var(--muted);margin-top:8px}
+.src{margin-top:14px;font-size:14px;color:var(--ink2)}.src summary{cursor:pointer;min-height:36px}.src ul{margin:6px 0 0;padding-left:18px}.src li{margin:4px 0}.src a{color:var(--lilac)}
+#story>summary,#method>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px}
+#story>summary::-webkit-details-marker{display:none}
+#story>summary .tg{font:500 14px Inter,sans-serif;color:var(--lilac);border:1px solid var(--line);border-radius:99px;padding:6px 14px;white-space:nowrap}
+#story[open]>summary .tg .o{display:none}#story:not([open])>summary .tg .c{display:none}
+.finding{background:linear-gradient(0deg,var(--panel),var(--panel));border:1px solid var(--line);border-left:4px solid var(--pink);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;justify-content:center}
+.finding .fl2{color:var(--ink2);font-size:14px}
+#title{font:500 clamp(20px,2vw,24px)/1.4 Inter,system-ui,sans-serif;letter-spacing:-.01em;margin:6px 0 10px;text-wrap:balance}
+#title b{color:#ff8cc0;white-space:nowrap;font-weight:700}
+.finding .meta{color:var(--muted);font-size:13px}
+.tick{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border:1px solid var(--line);border-radius:12px;margin-top:22px;overflow:hidden}
+.tick div{padding:10px 14px;border-right:1px solid var(--line);font-size:13px;color:var(--ink2)}
+.tick div:last-child{border-right:0}
+.tick b{display:block;color:var(--ink);font:600 15px Inter,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tick svg{display:block;width:100%;height:26px;margin-top:4px}
+@media(max-width:900px){.hero{grid-template-columns:minmax(0,1fr)}.tick{grid-template-columns:repeat(3,minmax(0,1fr))}.tick div:nth-child(3){border-right:0}.tick div:nth-child(-n+3){border-bottom:1px solid var(--line)}}
+@media(max-width:600px){nav.top{position:static}html{scroll-padding-top:12px}}
+@media(max-width:520px){.links{gap:2px 14px}.tick{grid-template-columns:repeat(2,minmax(0,1fr))}.tick div{border-right:1px solid var(--line)!important;border-bottom:1px solid var(--line)}.tick div:nth-child(2n){border-right:0!important}}
+.lede{color:var(--ink2);margin-top:12px;font-size:17px}
+.pill{display:inline-block;font-size:13px;padding:3px 10px;border-radius:99px;background:color-mix(in srgb,var(--pink) 18%,transparent);color:#ffc2df;margin-right:8px;white-space:nowrap}
+.pill.ok{background:color-mix(in srgb,var(--teal) 20%,transparent);color:#9cf0dc}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:18px 0 6px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi .l{color:var(--ink2);font-size:14px}
+.kpi .v{font:700 clamp(24px,2.6vw,32px)/1.15 Sora,sans-serif;margin:4px 0 2px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi .s{color:var(--muted);font-size:13px}
+.kpi.hot .v{color:#ff8cc0}
+.main{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px;padding-top:18px;padding-bottom:18px}
+.ctrl{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;align-self:start;position:sticky;top:72px;max-height:calc(100vh - 84px);overflow:auto}
+.ctrl h3{margin:16px 0 8px;font-size:15px;color:var(--lilac)}
+.ctrl h3:first-child{margin-top:0}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px;color:var(--ink2)}
+.row b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.field{margin-bottom:12px}
+input[type=range]{width:100%;accent-color:var(--violet);height:28px;margin:2px 0 0}
+input[type=number]{width:100%;background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:16px Inter,sans-serif}
+input:focus-visible,button:focus-visible{outline:2px solid var(--lilac);outline-offset:2px}
+.seg{display:flex;flex-wrap:wrap;gap:4px;background:var(--panel2);padding:4px;border-radius:10px;border:1px solid var(--line)}
+.seg button{flex:1 1 auto;min-height:36px;border:0;border-radius:7px;background:transparent;color:var(--ink2);font:500 14px Inter,sans-serif;cursor:pointer;padding:4px 8px}
+.seg button[aria-pressed=true]{background:var(--violet);color:#fff}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btn{min-height:40px;padding:6px 14px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font:500 14px Inter,sans-serif;cursor:pointer}
+.btn:hover{border-color:var(--violet)}
+.btn.pri{background:var(--pink);border-color:var(--pink);color:#fff}
+.chk{display:flex;gap:10px;align-items:center;font-size:14px;color:var(--ink2);min-height:36px;cursor:pointer}
+.chk input{width:20px;height:20px;accent-color:var(--violet)}
+.hint{font-size:13px;color:var(--muted);margin-top:2px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+.card .sub{color:var(--ink2);font-size:14px;margin-bottom:8px}
+.charts{display:grid;gap:18px}
+.fig{position:relative;min-height:340px}
+.fig.tall{min-height:380px}
+.fig>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+svg text{fill:var(--ink2);font:13px Inter,sans-serif;paint-order:stroke;stroke:var(--panel);stroke-width:4px}
+svg .ax{stroke:var(--line)}
+svg .gr{stroke:#2a2034}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;margin-bottom:18px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--ink2);margin-bottom:6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.bars .br{display:grid;grid-template-columns:130px minmax(0,1fr) 112px;gap:10px;align-items:center;font-size:14px;padding:5px 0}
+.bars .tr{height:18px;background:var(--panel2);border-radius:4px;overflow:hidden}
+.bars .fl{height:100%;border-radius:0 4px 4px 0}
+.bars .vl{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{color:var(--muted);font-weight:500;font-size:13px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td input[type=number]{padding:6px 6px;width:72px;font-size:16px}
+.neg{color:#ff8cc0}.pos{color:#7fe3cb}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:10px}
+.stat div{background:var(--panel2);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--ink2)}
+.stat b{display:block;font:600 20px Sora,sans-serif;color:var(--ink);font-variant-numeric:tabular-nums}
+section{padding:8px 0 10px}
+.method{max-width:820px;margin-top:6px}
+.method{margin-top:14px}
+.method details{border-top:1px solid var(--line)}
+.method details:last-child{border-bottom:1px solid var(--line)}
+.method summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:56px;padding:10px 4px;font:700 19px/1.25 Syne,Inter,sans-serif;letter-spacing:-.01em}
+.method summary::-webkit-details-marker{display:none}
+.method summary::after{content:"+";font:400 26px/1 Inter,sans-serif;color:var(--lilac);transition:transform .2s}
+.method details[open] summary::after{transform:rotate(45deg)}
+.method summary:hover{color:var(--lilac)}
+.method .body{padding:0 4px 18px}
+#method>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px}
+#method>summary::-webkit-details-marker{display:none}
+#method>summary .tg{font:500 14px Inter,sans-serif;color:var(--lilac);border:1px solid var(--line);border-radius:99px;padding:6px 14px;white-space:nowrap}
+#method[open]>summary .tg .o{display:none}#method:not([open])>summary .tg .c{display:none}
+.mbtns{display:flex;gap:8px;margin-top:12px}
+.math{background:var(--panel2);border-left:3px solid var(--violet);border-radius:6px;padding:10px 14px;margin:8px 0 12px;font:15px/1.7 "Cambria Math","STIX Two Math",Georgia,serif;overflow-x:auto;color:var(--ink)}
+.math sub,.math sup{font-size:.72em}
+code{background:var(--panel2);padding:1px 6px;border-radius:5px;font-size:14px;overflow-wrap:anywhere}
+#tip{position:fixed;pointer-events:none;background:#0b0710;border:1px solid var(--violet);border-radius:8px;padding:7px 10px;font-size:13px;line-height:1.45;color:var(--ink);opacity:0;transition:opacity .1s;z-index:9;max-width:240px}
+#busy{font-size:13px;color:var(--lilac);min-height:20px}
+.drop{border:1.5px dashed var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--ink2);font-size:14px}
+.drop.on{border-color:var(--pink)}
+.err{color:#ff8cc0;font-size:14px;margin-top:8px}
+footer{border-top:1px solid var(--line);color:var(--muted);font-size:13px;padding:18px 0 40px}
+@media(max-width:980px){.main{grid-template-columns:minmax(0,1fr)}.ctrl{position:static;max-height:none;order:2}.grid2{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.bars .br{grid-template-columns:92px minmax(0,1fr) 92px;font-size:13px}table{font-size:13px}th,td{padding:6px 4px}.fig{min-height:290px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="tip"></div>
+<nav class="top"><div class="wrap nav">
+  <a href="#sim" class="brand"><svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true"><path d="M3 22 C9 21 11 6 14 6 S19 21 25 22" fill="none" stroke="#e5579d" stroke-width="2.6" stroke-linecap="round"/><path d="M3 22 C6 21.6 7.5 18 8.6 15" fill="none" stroke="#9273e6" stroke-width="2.6" stroke-linecap="round"/></svg>KOSPI Risk Lab</a>
+  <div class="links"><a href="#sim">Simulation</a><a href="#stress-tests">Stress tests</a><a href="#backtest">Backtest</a><a href="#story">Korea story</a><a href="#method">Methodology</a><a href="#data">Data</a></div>
+</div></nav>
+<header><div class="wrap">
+  <div class="hero">
+    <div>
+      <h1>Monte Carlo risk model for a Korean equity portfolio</h1>
+      <p class="lede voice">Korea's market has been one of the wildest rides of 2026, carried up and dragged down by two chipmakers. This model asks what that volatility could cost a euro investor once you add the won on top.</p>
+      <p class="lede tech">Five KOSPI stocks and EUR/KRW · correlated geometric Brownian motion, fat-tailed and historical scenarios · simulated live in your browser.</p>
+      <p class="by">By Nina Maniurka · <span class="pill" id="dpill">Sample data</span></p>
+    </div>
+    <div class="finding"><div class="fl2">Headline result</div><div id="title"></div><div class="meta" id="dline"></div></div>
+  </div>
+  <div class="tick" id="tick"></div>
+  <div class="kpis" id="kpis"></div>
+</div></header>
+
+<div class="wrap main">
+  <aside class="ctrl" aria-label="Model controls">
+    <h3>Model</h3>
+    <div class="field"><div class="seg" id="model"><button data-v="normal">GBM</button><button data-v="t">Student-t</button><button data-v="boot">Bootstrap</button></div>
+      <div class="hint" id="modelHint"></div></div>
+    <div class="field" id="dfBox"><div class="row"><label for="df">Tail thickness (degrees of freedom)</label><b id="dfV"></b></div><input type="range" id="df" min="3" max="30" step="1"></div>
+    <h3>Position</h3>
+    <div class="field"><label class="row" for="val">Portfolio value (EUR)</label><input type="number" id="val" min="1000" step="1000"></div>
+    <div class="field"><div class="row"><span>Confidence</span></div><div class="seg" id="conf"><button data-v="0.95">95%</button><button data-v="0.975">97.5%</button><button data-v="0.99">99%</button><button data-v="0.995">99.5%</button></div></div>
+    <div class="field"><div class="row"><label for="hor">Horizon</label><b id="horV"></b></div><input type="range" id="hor" min="1" max="60" step="1"></div>
+    <div class="field"><div class="row"><span>Simulations</span></div><div class="seg" id="nsim"><button data-v="5000">5k</button><button data-v="20000">20k</button><button data-v="50000">50k</button></div></div>
+    <h3>Weights</h3>
+    <div id="wts"></div>
+    <div class="btns"><button class="btn" id="eqw">Equal weight</button><button class="btn" id="rsw">Reset weights</button></div>
+    <h3>What-if levers</h3>
+    <div class="field"><div class="row"><label for="hedge">Currency hedge</label><b id="hedgeV"></b></div><input type="range" id="hedge" min="0" max="100" step="5"><div class="hint">Share of the KRW exposure hedged back to euros.</div></div>
+    <div class="field"><div class="row"><label for="vm">Volatility shock</label><b id="vmV"></b></div><input type="range" id="vm" min="1" max="3" step="0.1"></div>
+    <div class="field"><div class="row"><label for="cs">Correlation stress</label><b id="csV"></b></div><input type="range" id="cs" min="0" max="0.8" step="0.05"><div class="hint">Pushes correlations toward ±1, as in a crisis. Not used by bootstrap.</div></div>
+    <label class="chk"><input type="checkbox" id="drift"> Include historical drift (μ)</label>
+    <div class="field"><div class="row"><label for="seed">Random seed</label></div><input type="number" id="seed" min="1" step="1"></div>
+    <div class="btns"><button class="btn pri" id="redraw">New draw</button><button class="btn" id="copy">Copy results</button><button class="btn" id="resetAll">Reset all</button></div>
+    <div id="busy" aria-live="polite"></div>
+  </aside>
+
+  <div class="charts">
+    <div class="card" id="sim"><h2 id="fanT">Where the portfolio could go</h2><div class="sub" id="fanS"></div>
+      <div class="legend"><span><i style="background:color-mix(in srgb,var(--violet) 35%,transparent)"></i>5th–95th percentile</span><span><i style="background:color-mix(in srgb,var(--violet) 75%,transparent)"></i>25th–75th</span><span><i style="background:var(--lilac)"></i>Median</span><span><i style="background:var(--pink)"></i>1st percentile</span></div>
+      <div class="field" style="max-width:360px"><div class="seg" id="fanD"><button data-v="21">1 month</button><button data-v="63">3 months</button><button data-v="126">6 months</button><button data-v="252">1 year</button></div></div>
+      <div class="fig tall"><svg id="fan" role="img" aria-label="Fan chart of simulated portfolio value"></svg></div></div>
+    <div class="card"><h2 id="histT">Profit and loss distribution</h2><div class="sub" id="histS"></div>
+      <div class="fig"><svg id="hist" role="img" aria-label="Histogram of simulated profit and loss"></svg></div></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="grid2">
+    <div class="card"><h2 id="contT">Where the tail loss comes from</h2><div class="sub">Average loss from each position in the scenarios beyond VaR (Euler allocation of Expected Shortfall). The parts add up to ES.</div><div class="bars" id="contrib"></div></div>
+    <div class="card"><h2>Correlation of daily returns</h2><div class="sub">Violet means the two move together, pink means they move in opposite directions. Before any correlation stress.</div><div class="fig" style="min-height:330px"><svg id="corr" role="img" aria-label="Correlation matrix"></svg></div></div>
+  </div>
+  <div class="card" id="stress-tests" style="margin-bottom:18px"><h2>Stress tests</h2><div class="sub">Instant shocks applied to today's portfolio. Hypothetical scenarios, not historical replays. Edit the last row to build your own.</div><div class="scroll"><table id="stress"></table></div></div>
+  <div class="card" id="backtest" style="margin-bottom:18px"><h2 id="btT">Backtest: does the model's VaR hold up?</h2><div class="sub" id="btS"></div>
+    <div class="legend"><span><i style="background:var(--muted)"></i>Daily portfolio return (EUR)</span><span><i style="background:var(--pink)"></i>1-day VaR and breaches</span></div>
+    <div class="fig"><svg id="bt" role="img" aria-label="VaR backtest chart"></svg></div><div class="stat" id="btStat"></div></div>
+  <div class="grid2">
+    <div class="card"><h2 id="cmpT">Five ways to measure the same risk</h2><div class="sub">VaR at three confidence levels. Horizon, hedge and stresses as set on the left.</div>
+      <div class="legend" id="cmpLeg"></div><div class="fig" style="min-height:250px"><svg id="cmp" role="img" aria-label="VaR by method"></svg></div></div>
+    <div class="card"><h2>Is 20k simulations enough?</h2><div class="sub" id="cvS">VaR estimate as more scenarios are added, with a 95% confidence band for the estimate itself.</div>
+      <div class="fig" style="min-height:290px"><svg id="conv" role="img" aria-label="VaR convergence"></svg></div></div>
+  </div>
+  <div class="card" style="margin-bottom:18px"><h2>Inputs estimated from the data</h2><div class="sub" id="statS"></div><div class="scroll"><table id="stats"></table></div></div>
+
+  <details id="story" class="card" style="margin-bottom:18px" open>
+    <summary><div><h2>The Korean market story</h2><p class="sub" style="margin:0">From a 12-company exchange in 1956 to the most volatile major market of 2026. Click a chapter to open it.</p></div><span class="tg"><span class="o">Show</span><span class="c">Hide</span></span></summary>
+    <div class="mbtns"><button class="btn" id="sOpen">Open all chapters</button><button class="btn" id="sClose">Close all chapters</button></div>
+    <div class="method">
+      <details open><summary>1956–1989 · A market is born</summary><div class="body">
+<p>The Korea Stock Exchange opened on 3 March 1956 with just 12 listed companies, at a time when trading was mostly in government bonds. The KOSPI as we know it arrived in 1983: a market-cap-weighted index of every common stock on the main board, set to 100 on 4 January 1980.</p>
+<p>Through the 1980s the market was led by construction, finance and trading houses, the engines of the "Miracle on the Han River". The index first broke 1,000 on 31 March 1989, then spent more than a decade bouncing below and above that line.</p>
+      </div></details>
+      <details><summary>1983 · Korea bets on memory chips</summary><div class="body">
+<p>In February 1983, Samsung founder Lee Byung-chul announced from Tokyo that Samsung would enter semiconductors, the so-called Tokyo Declaration, against strong opposition at home. Samsung chose DRAM, a mass-producible memory chip, and had a working 64K DRAM by December 1983, making Korea the third country after the US and Japan to build one.</p>
+<p>Within ten years the gamble paid off. In 1992 Samsung produced the world's first 64-megabit DRAM and became the world's largest DRAM maker, a position it has held since.</p>
+<p>The same year, 1983, the Hyundai group founded Hyundai Electronics. After the 1997 crisis it became Hynix Semiconductor in 2001, went through years of creditor control, and in 2012 was bought by the SK Group as SK Hynix. Together, these two companies are the core of this portfolio.</p>
+      </div></details>
+      <details><summary>1997 · The won breaks</summary><div class="body">
+<p>In the mid-1990s Korea held a strong-won policy. Banks and the chaebol borrowed heavily in short-term dollars at low rates. When the Asian crisis spread from Thailand in 1997, foreign lenders pulled out and everyone needed dollars at once.</p>
+<p>On 17 November 1997 the Bank of Korea stopped defending the currency, and the won fell below 1,000 per dollar for the first time. Four days later Korea asked the IMF for help, and on 3 December the IMF approved a $57 billion package, the largest it had ever arranged. By late December the won had lost about 55% of its value, from roughly 844 per dollar on average in 1996 to around 1,850 in 1997.</p>
+<p>This is why the model treats the currency as a risk factor. When Korean stocks crash, foreign money leaves and the won falls with them, so a foreign investor is hit twice. That is the negative correlation between EUR/KRW and the stocks in the heatmap above.</p>
+      </div></details>
+      <details><summary>2000s–2024 · The "Korea discount"</summary><div class="body">
+<p>After the IT boom of 1999 and the 2008 crisis, the KOSPI settled into a long sideways range. Traders nicknamed it the "Boxpi", stuck roughly between 2,000 and 2,300 for years.</p>
+<p>Korean companies traded at lower valuations than peers in other markets, many below the value of their own assets. The usual explanations were conglomerate (chaebol) structures that put family control ahead of minority shareholders, low dividends, and the risk from North Korea.</p>
+<p>In 2024 the government launched the Corporate Value-Up Program, inspired by Japan's reforms. It asked listed companies to publish plans to raise their value and return more cash to shareholders.</p>
+      </div></details>
+      <details><summary>2012–2024 · SK Hynix and the AI chip</summary><div class="body">
+<p>When SK bought Hynix in 2012, many called the deal financially irresponsible. SK Hynix then bet on high-bandwidth memory (HBM), stacked memory chips that feed data very fast. In 2013 it worked with AMD to get the first HBM standard published. For years HBM was a niche product, and around 2019 its packaging plant stood half idle.</p>
+<p>ChatGPT changed that in late 2022. Nvidia's AI accelerators need HBM, and SK Hynix became Nvidia's main supplier, with about 55% of the HBM market in 2024 according to JPMorgan, ahead of Samsung. This later made SK Hynix Korea's most valuable company. It also tied the whole Korean market to one question: does the AI spending boom continue?</p>
+      </div></details>
+      <details><summary>2025 · The best market in the world</summary><div class="body">
+<p>The KOSPI started 2025 near 2,400, weighed down by the political shock of a failed martial-law declaration. It ended the year up about 75%, the best-performing major index in the world and its strongest year since 1999.</p>
+<p>Two forces drove it. The first was the AI boom in memory chips. The second was reform: President Lee Jae-myung campaigned on "KOSPI 5,000", and his government amended the Commercial Act to protect minority shareholders, with a third round passed in February 2026. Foreign investors poured in.</p>
+      </div></details>
+      <details><summary>2026 · Up to 9,000, then the fall</summary><div class="body">
+<p>The rally kept going. The KOSPI broke 5,000 in January 2026 and 6,000 in February, and by May it had roughly tripled from the end of 2024. It peaked above 9,000 on 22 June.</p>
+<p>Then it turned. With Samsung Electronics and SK Hynix making up roughly half the index, every doubt about AI spending hit the whole market at once. Foreign investors became heavy sellers, circuit breakers were triggered 10 times in the year by mid-October, and in October the index moved 3.58% a day on average. On 5–6 November it fell about 11% in two days, closing at 5,059.69. One economist called it more volatile than Bitcoin.</p>
+      </div></details>
+      <details><summary>2026 · The won's round trip</summary><div class="body">
+<p>The won followed the same story with a lag. Heavy foreign selling of Korean stocks and the Iran war pushed it close to 1,600 per dollar by June 2026.</p>
+<p>From July it recovered sharply. Strong exports, a large trade surplus and Bank of Korea rate hikes to 3% in July and August brought it back to about 1,340 per dollar in October, its strongest since September 2024.</p>
+<p>For this portfolio the relevant rate is EUR/KRW, which combines the won's moves against the dollar with the euro's own moves against the dollar.</p>
+      </div></details>
+      <details><summary>What this means for the model</summary><div class="body">
+<p><b>Concentration:</b> half the portfolio is in Samsung and SK Hynix, just like the market. The risk contribution chart shows that most of the tail loss comes from those two.</p>
+<p><b>Currency:</b> 1997 and 2026 both show the won falling when stocks fall. An unhedged euro investor takes that loss on top, which is what the "Currency adds" figure measures.</p>
+<p><b>Fat tails:</b> a 6% daily fall is close to impossible under a normal distribution with 2026-level volatility, yet it happened twice in a row. That is why the page offers Student-t and bootstrap scenarios, and stress tests for moves no model expects.</p>
+<p><b>Volatility shifts:</b> calm years followed by violent ones break the constant-volatility assumption. Use the volatility shock lever to see what a 2026-style regime does to VaR.</p>
+      </div></details>
+    </div>
+    <details class="src"><summary>Sources</summary><ul>
+      <li><a href="https://global.krx.co.kr/contents/GLB/02/0201/0201010100/GLB0201010100.jsp">Korea Exchange: What is KOSPI</a> · <a href="https://cm.asiae.co.kr/en/article/2026012216221872695">Asia Economy: 70 years of the Korean market</a></li>
+      <li><a href="https://www.asiae.co.kr/en/article/2023020710093517522">Asia Economy: Samsung's Tokyo Declaration</a> · <a href="https://thelec.net/news/articleView.html?idxno=1768">TheElec: Samsung top DRAM vendor since 1992</a></li>
+      <li><a href="https://sk.sagepub.com/cases/embed/managing-the-asian-meltdown-the-imf-and-south-korea">Managing the Asian Meltdown (case chronology)</a> · <a href="https://www.goldmansachs.com/our-firm/history/moments/1997-asia-financial-crisis">Goldman Sachs: 1997 Asia crisis</a> · <a href="https://www.cesifo.org/DocDL/forum4-08-focus11.pdf">CESifo Forum</a></li>
+      <li><a href="https://amro-asia.org/narrowing-the-korea-discount-stock-market-reform-via-corporate-value-up/">AMRO: Narrowing the Korea discount</a> · <a href="https://english.aawsat.com/node/5287897">Reuters via Asharq Al-Awsat: SK Hynix's HBM bet</a> · <a href="https://www.koreajoongangdaily.com/business/how-hbm-split-the-paths-of-samsung-amd-and-sk-hynix/11975341">JoongAng Daily: HBM</a></li>
+      <li><a href="https://www.tmgm.com/en/analysis/market-insight/kospi-doubles-as-south-korea-pushes-market-reforms">TMGM: KOSPI doubles</a> · <a href="https://www.bcg.com/publications/2026/south-korea-capital-efficiency-and-value-creation">BCG: Korea value creation 2026</a> · <a href="https://mbiz.heraldcorp.com/article/10904989">Korea Herald: circuit breakers</a> · <a href="https://drawpie.com/blog/kospi-today-whats-driving-the-sell-off/">KOSPI sell-off, 6 Nov 2026</a></li>
+      <li><a href="https://www.koreatimes.co.kr/economy/20261018/won-strengthens-on-robust-exports-increased-dollar-supply">Korea Times: won strengthens</a> · <a href="https://www.koreatimes.co.kr/economy/20261026/wons-rally-raises-prospect-of-1200-level-per-dollar-rate">Korea Times: won's rally</a></li>
+    </ul></details>
+  </details>
+
+  <details id="method" class="card" style="margin-bottom:18px" open>
+    <summary><div><h2>How the model works</h2><p class="sub" style="margin:0">Each step explained so you can talk through it in an interview. Click a step to open it.</p></div><span class="tg"><span class="o">Show</span><span class="c">Hide</span></span></summary>
+    <div class="mbtns"><button class="btn" id="mOpen">Open all steps</button><button class="btn" id="mClose">Close all steps</button></div>
+    <div class="method">
+      <details open><summary>1. Prices follow geometric Brownian motion</summary><div class="body">
+<p>Each stock price S and the exchange rate follow a geometric Brownian motion (GBM): the price grows at a drift μ and is hit by random shocks proportional to its level, with volatility σ.</p>
+        <div class="math">dS<sub>t</sub> = μ S<sub>t</sub> dt + σ S<sub>t</sub> dW<sub>t</sub></div>
+        <p>Solving it (Itô's lemma) gives the price after a step Δt. Log returns are normal, so prices stay positive and are lognormal.</p>
+        <div class="math">S<sub>t+Δt</sub> = S<sub>t</sub> · exp[(μ − ½σ²)Δt + σ√Δt · Z],  Z ~ N(0,1)</div>
+        <p>The −½σ² term is the volatility drag. The model estimates the average daily <em>log</em> return, which already equals (μ − ½σ²)Δt, so no further correction is needed. With drift switched off that term is set to zero, the usual choice for horizons of a few weeks, because the mean is tiny and badly estimated.</p>
+      </div></details>
+      <details><summary>2. Estimating from history</summary><div class="body">
+<p>Daily log returns r = ln(P<sub>t</sub>/P<sub>t−1</sub>) give the mean, the volatility of each factor and the 6×6 covariance matrix Σ for the 5 stocks plus EUR/KRW. Annualised volatility = daily σ × √252.</p>
+      </div></details>
+      <details><summary>3. Correlated shocks: Cholesky</summary><div class="body">
+<p>The six factors move together, so their shocks can't be drawn independently. Σ is factorised as Σ = L·Lᵀ, where L is lower triangular. Multiplying a vector of independent normals by L gives shocks with exactly the right covariance.</p>
+        <div class="math">x = m·h + √h · L·z,  z ~ N(0, I<sub>6</sub>)  ⇒  Cov(x) = h·Σ</div>
+        <p>The correlation stress lever blends the correlation matrix toward ±1, ρ′ = (1−λ)ρ + λ·s<sub>i</sub>s<sub>j</sub>, with s = +1 for stocks and −1 for the currency. This is a mix of valid matrices, so it stays valid.</p>
+      </div></details>
+      <details><summary>4. Converting to euros</summary><div class="body">
+<p>EUR/KRW is quoted as won per euro, X. A Korean stock is worth P/X euros, so its euro log return is r<sub>stock</sub> − r<sub>X</sub>. When the won weakens, X rises and the investor loses. Each scenario revalues the whole portfolio:</p>
+        <div class="math">P&amp;L = V · [ Σ<sub>i</sub> w<sub>i</sub> · exp(x<sub>i</sub> − (1−H)·x<sub>FX</sub>) − 1 ]</div>
+        <p>H is the hedge ratio (hedging cost and the interest-rate differential are ignored). Setting H = 100% isolates pure equity risk, which is how the page measures the currency effect.</p>
+      </div></details>
+      <details><summary>5. Three ways to draw scenarios</summary><div class="body">
+<p><b>GBM (normal):</b> the textbook model above. Fast and transparent, but normal tails are too thin for real markets.</p>
+        <p><b>Student-t:</b> each day's normal shock vector is divided by √(χ²<sub>ν</sub>/ν) and rescaled to unit variance. That keeps the volatility but adds fat tails and joint crashes, and lower ν means fatter tails. The 10-day return is the sum of daily draws.</p>
+        <p><b>Bootstrap (historical simulation):</b> the model draws whole past days at random, with all six returns from the same day, and adds them up over the horizon. It makes no distribution assumption and keeps real fat tails and co-movement, but it can't produce a crash worse than the worst day in the sample.</p>
+      </div></details>
+      <details><summary>6. Value-at-Risk and Expected Shortfall</summary><div class="body">
+<p>Sort the simulated P&amp;L. VaR at confidence c is the loss at the (1−c) percentile: "with 99% confidence we won't lose more than this over h days". Expected Shortfall is the average loss beyond that point. It answers "how bad is it when it is bad?" and is coherent (it rewards diversification). Basel's FRTB rules replaced 99% VaR with 97.5% ES for this reason.</p>
+        <div class="math">VaR<sub>c</sub> = −q<sub>1−c</sub>(P&amp;L)    ES<sub>c</sub> = −E[P&amp;L | P&amp;L ≤ −VaR<sub>c</sub>]</div>
+        <p>Cross-checks: <b>parametric VaR</b> = z<sub>c</sub>·σ<sub>p</sub>·√h·V with σ<sub>p</sub>² = bᵀΣb, where b is the vector of weights with the currency at −(1−H). <b>Historical VaR</b> takes the 1-day percentile of actual portfolio returns and scales it by √h.</p>
+      </div></details>
+      <details><summary>7. Risk contributions</summary><div class="body">
+<p>In each tail scenario the loss is split into each stock's move in won plus a currency remainder. Averaging those parts over the tail gives each position's share of ES (Euler allocation). The shares add up exactly to ES.</p>
+      </div></details>
+      <details><summary>8. Backtesting with the Kupiec test</summary><div class="body">
+<p>For every day after the first 250, the page computes a 1-day parametric VaR from the previous 250 days and counts the days that lost more. If the model is right, breaches follow a Binomial(T, 1−c). Kupiec's likelihood ratio, compared with χ²(1), tests whether there are too many or too few:</p>
+        <div class="math">LR = −2 ln[(1−p)<sup>T−x</sup> p<sup>x</sup>] + 2 ln[(1−x/T)<sup>T−x</sup> (x/T)<sup>x</sup>]</div>
+      </div></details>
+      <details><summary>Limitations</summary><div class="body">
+<p>Volatility and correlation are constant, while real markets cluster (GARCH or EWMA would react). The √h scaling and summing days assume returns are independent from day to day. There is no rebalancing, dividends, liquidity or transaction costs. Simulation noise is real, as the convergence chart shows.</p>
+      </div></details>
+    </div>
+  </details>
+
+  <section class="card" id="data" style="margin-bottom:18px">
+    <h2>Use real prices</h2>
+    <p class="sub">The page opens with synthetic sample prices so every chart works. To load real data, run the Colab notebook, which saves <code>kospi_prices.csv</code>, then drop that file here. Everything recalculates in your browser.</p>
+    <div class="drop" id="drop"><label for="file" style="cursor:pointer">Drop a CSV here or <u>choose a file</u></label><input type="file" id="file" accept=".csv,text/csv" style="display:none"></div>
+    <div class="err" id="ferr"></div>
+    <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--ink2)">Expected format</summary>
+      <p style="margin-top:8px">One header row, then one row per trading day, oldest or newest first. Column 1 is the date and columns 2–7 are prices: the 5 stocks in KRW in this order, then EUR/KRW (won per euro). At least 60 rows.</p>
+      <div class="math" style="font-family:ui-monospace,Menlo,monospace;font-size:13px">Date,Samsung Electronics,SK Hynix,Hyundai Motor,NAVER,KB Financial,EUR/KRW<br>2024-11-20,55600,180200,212000,189500,80100,1459.8</div>
+      <button class="btn" id="useSample">Back to sample data</button></details>
+  </section>
+</div>
+<footer><div class="wrap">Educational model by Nina Maniurka. Tickers: 005930.KS, 000660.KS, 005380.KS, 035420.KS, 105560.KS, EURKRW=X. Not investment advice.</div></footer>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const NAMES=['Samsung Electronics','SK Hynix','Hyundai Motor','NAVER','KB Financial'];
+const SHORT=['Samsung','SK Hynix','Hyundai','NAVER','KB Fin.'];
+const ALL=[...NAMES,'EUR/KRW'];
+const C={violet:'#9273e6',lilac:'#c8b6ff',pink:'#e5579d',teal:'#16a58c',amber:'#b97e00',blue:'#3f86e0',muted:'#9a8ca4',line:'#33283f',panel:'#1b1424',ink:'#f4ecf7',ink2:'#c9bbd2'};
+const DEF={model:'normal',df:5,val:100000,conf:0.99,hor:10,nsim:20000,w:[30,20,20,15,15],hedge:0,vm:1,cs:0,drift:false,seed:42,fanD:63};
+let S=load();
+let DATA=null,SAMPLE=true,R=null,LIVE=false;
+
+function load(){try{const s=JSON.parse(localStorage.getItem('kospiRisk')||'null');if(s&&s.w&&s.w.length===5)return {...DEF,...s}}catch(e){}return JSON.parse(JSON.stringify(DEF))}
+function save(){try{localStorage.setItem('kospiRisk',JSON.stringify(S))}catch(e){}}
+
+// ---------- random numbers
+function rng32(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gaussF(r){let sp=null;return()=>{if(sp!==null){const v=sp;sp=null;return v}let u=0;while(u===0)u=r();const v=r(),m=Math.sqrt(-2*Math.log(u));sp=m*Math.sin(2*Math.PI*v);return m*Math.cos(2*Math.PI*v)}}
+
+// ---------- sample data (synthetic)
+function sample(){
+  const r=rng32(7),g=gaussF(r),n=750,vol=[.30,.45,.30,.35,.28,.08].map(v=>v/Math.sqrt(252));
+  const Cm=[[1,.65,.35,.35,.35,-.30],[.65,1,.30,.35,.30,-.30],[.35,.30,1,.30,.40,-.25],[.35,.35,.30,1,.30,-.20],[.35,.30,.40,.30,1,-.25],[-.30,-.30,-.25,-.20,-.25,1]];
+  const L=chol(Cm),px=[[55000,180000,210000,190000,80000,1460]],dates=[];
+  let d=new Date(Date.UTC(2026,10,19));const ds=[];while(ds.length<=n){if(d.getUTCDay()%6)ds.unshift(d.toISOString().slice(0,10));d=new Date(d-864e5)}
+  for(let t=0;t<n;t++){const z=[0,1,2,3,4,5].map(()=>g()*(r()<.02?2.2:1));const p=px[t].map((v,i)=>{let s=0;for(let j=0;j<=i;j++)s+=L[i][j]*z[j];return v*Math.exp(s*vol[i])});px.push(p)}
+  return {dates:ds,px};
+}
+
+// ---------- linear algebra & stats
+function chol(A){const n=A.length,L=A.map(()=>Array(n).fill(0));for(let i=0;i<n;i++)for(let j=0;j<=i;j++){let s=A[i][j];for(let k=0;k<j;k++)s-=L[i][k]*L[j][k];if(i===j){if(s<=0)throw new Error('not positive definite');L[i][i]=Math.sqrt(s)}else L[i][j]=s/L[j][j]}return L}
+const mean=a=>a.reduce((s,v)=>s+v,0)/a.length;
+function quantSorted(a,p){const i=Math.max(0,Math.min(a.length-1,Math.floor(p*a.length)));return a[i]}
+function varES(arr,c){const a=Float64Array.from(arr).sort();const k=Math.max(1,Math.floor((1-c)*a.length));let s=0;for(let i=0;i<k;i++)s+=a[i];return {VaR:-a[k-1],ES:-s/k,sorted:a}}
+function normInv(p){const a=[-39.69683028665376,220.9460984245205,-275.9285104469687,138.357751867269,-30.66479806614716,2.506628277459239],b=[-54.47609879822406,161.5858368580409,-155.6989798598866,66.80131188771628,-13.28068155288572],c=[-.007784894002430293,-.3223964580411365,-2.400758277161838,-2.549732539343734,4.374664141464968,2.938163982698783],d=[.007784695709041462,.3224671290700398,2.445134137142996,3.754408661907416],pl=.02425;let q,r;if(p<pl){q=Math.sqrt(-2*Math.log(p));return(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}if(p>1-pl){q=Math.sqrt(-2*Math.log(1-p));return-(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}q=p-.5;r=q*q;return(((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1)}
+function erfc(x){const z=Math.abs(x),t=1/(1+.5*z),r=t*Math.exp(-z*z-1.26551223+t*(1.00002368+t*(.37409196+t*(.09678418+t*(-.18628806+t*(.27886807+t*(-1.13520398+t*(1.48851587+t*(-.82215223+t*.17087277)))))))));return x>=0?r:2-r}
+
+// ---------- formatting
+const eur=v=>(v<0?'−€':'€')+Math.round(Math.abs(v)).toLocaleString('en-US');
+const eurK=v=>{const a=Math.abs(v);return (v<0?'−€':'€')+(a>=1e6?(a/1e6).toFixed(1)+'M':a>=1e3?(a/1e3).toFixed(a>=1e4?0:1)+'k':a.toFixed(0))};
+const cf=c=>(Math.round(c*1000)%10?(c*100).toFixed(1):(c*100).toFixed(0))+'%';
+const pct=(v,d=1)=>(v<0?'−':'')+Math.abs(v*100).toFixed(d)+'%';
+function ticks(a,b,n){const sp=(b-a)||1,s0=sp/n,p=Math.pow(10,Math.floor(Math.log10(s0))),m=s0/p,st=(m<1.5?1:m<3?2:m<7?5:10)*p,o=[];for(let v=Math.ceil(a/st)*st;v<=b+st*1e-6;v+=st)o.push(+v.toPrecision(12));return o}
+const tip=$('tip');
+function showTip(e,html){tip.innerHTML=html;tip.style.opacity=1;const x=Math.min(e.clientX+14,innerWidth-250),y=Math.min(e.clientY+14,innerHeight-120);tip.style.left=x+'px';tip.style.top=y+'px'}
+function hideTip(){tip.style.opacity=0}
+
+// ---------- model
+function prep(){
+  const px=DATA.px,n=px.length,ret=[];
+  for(let t=1;t<n;t++)ret.push(px[t].map((v,i)=>Math.log(v/px[t-1][i])));
+  const m=ret.length,mu=[0,1,2,3,4,5].map(i=>mean(ret.map(r=>r[i])));
+  const cov=mu.map((a,i)=>mu.map((b,j)=>ret.reduce((s,r)=>s+(r[i]-a)*(r[j]-b),0)/(m-1)));
+  const sd=cov.map((r,i)=>Math.sqrt(r[i])),corr=cov.map((r,i)=>r.map((v,j)=>v/(sd[i]*sd[j])));
+  return {ret,mu,cov,sd,corr,m};
+}
+function params(E){
+  const k=S.vm,lam=S.cs,sg=[1,1,1,1,1,-1];
+  const rho=E.corr.map((r,i)=>r.map((v,j)=>i===j?1:(1-lam)*v+lam*sg[i]*sg[j]));
+  const sd=E.sd.map(v=>v*k),cov=rho.map((r,i)=>r.map((v,j)=>v*sd[i]*sd[j]));
+  let L;try{L=chol(cov)}catch(e){const c2=cov.map((r,i)=>r.map((v,j)=>i===j?v*1.001:v*.98));L=chol(c2)}
+  const mu=S.drift?E.mu:[0,0,0,0,0,0];
+  const B=E.ret.map(r=>r.map((v,i)=>mu[i]+(v-E.mu[i])*k));
+  const tw=S.w.reduce((a,b)=>a+b,0)||1;
+  return {L,cov,mu,B,w:S.w.map(v=>v/tw),H:S.hedge/100,V:S.val,df:S.df};
+}
+function simulate(model,n,h,P,rng){
+  const g=gaussF(rng),X=new Float64Array(n*6),z=new Float64Array(6),L=P.L,m=P.mu,sh=Math.sqrt(h),df=P.df,sc=Math.sqrt((df-2)/df),Bn=P.B.length;
+  for(let k=0;k<n;k++){const o=k*6;
+    if(model==='boot'){for(let d=0;d<h;d++){const r=P.B[(rng()*Bn)|0];for(let i=0;i<6;i++)X[o+i]+=r[i]}}
+    else if(model==='normal'){for(let i=0;i<6;i++)z[i]=g();for(let i=0;i<6;i++){let s=0;for(let j=0;j<=i;j++)s+=L[i][j]*z[j];X[o+i]=m[i]*h+sh*s}}
+    else{for(let d=0;d<h;d++){let c=0;for(let q=0;q<df;q++){const u=g();c+=u*u}const f=sc/Math.sqrt(c/df);for(let i=0;i<6;i++)z[i]=g()*f;for(let i=0;i<6;i++){let s=0;for(let j=0;j<=i;j++)s+=L[i][j]*z[j];X[o+i]+=m[i]+s}}}
+  }
+  return X;
+}
+function pnlOf(X,P){
+  const n=X.length/6,e=new Float64Array(n),l=new Float64Array(n),w=P.w,V=P.V,a=1-P.H;
+  for(let k=0;k<n;k++){const o=k*6;let se=0,sl=0;for(let i=0;i<5;i++){se+=w[i]*Math.exp(X[o+i]-a*X[o+5]);sl+=w[i]*Math.exp(X[o+i])}e[k]=V*(se-1);l[k]=V*(sl-1)}
+  return {e,l};
+}
+function paths(model,nP,D,P,rng){
+  const vals=[];for(let d=0;d<=D;d++)vals.push(new Float64Array(nP));
+  const cum=new Float64Array(6),w=P.w,a=1-P.H,V=P.V,keep=[];
+  for(let p=0;p<nP;p++){cum.fill(0);vals[0][p]=V;const one=p<36?[V]:null;
+    for(let d=1;d<=D;d++){const X=simulate(model,1,1,P,rng);for(let i=0;i<6;i++)cum[i]+=X[i];let s=0;for(let i=0;i<5;i++)s+=w[i]*Math.exp(cum[i]-a*cum[5]);vals[d][p]=V*s;if(one)one.push(V*s)}
+    if(one)keep.push(one)}
+  const Q=[.01,.05,.25,.5,.75,.95].map(q=>vals.map(col=>quantSorted(Float64Array.from(col).sort(),q)));
+  return {Q,keep};
+}
+
+function run(){
+  const t0=performance.now();
+  const E=prep(),P=params(E),h=S.hor,n=S.nsim,rng=rng32(S.seed);
+  const sims={};
+  for(const m of ['normal','t','boot'])sims[m]=simulate(m,m===S.model?n:Math.min(n,20000),h,P,rng);
+  const X=sims[S.model],pl=pnlOf(X,P);
+  const main=varES(pl.e,S.conf),loc=varES(pl.l,S.conf);
+  // contributions
+  const nn=pl.e.length,thr=-main.VaR,cs=new Float64Array(6);let cnt=0;
+  for(let k=0;k<nn;k++)if(pl.e[k]<=thr){cnt++;const o=k*6;let st=0;for(let i=0;i<5;i++){const v=P.V*P.w[i]*(Math.exp(X[o+i])-1);cs[i]+=v;st+=v}cs[5]+=pl.e[k]-st}
+  const contrib=[...cs].map(v=>-v/cnt);
+  // historical portfolio returns (EUR, with hedge)
+  const a=1-P.H,hr=E.ret.map(r=>{let s=0;for(let i=0;i<5;i++)s+=P.w[i]*Math.exp(r[i]-a*r[5]);return s-1});
+  const b=[...P.w,-a],sp=Math.sqrt(b.reduce((s,bi,i)=>s+bi*b.reduce((t,bj,j)=>t+bj*P.cov[i][j],0),0)),mp=b.reduce((s,bi,i)=>s+bi*P.mu[i],0);
+  const hs=Float64Array.from(hr).sort();
+  const methods=[0.95,0.975,0.99].map(c=>({c,
+    normal:varES(pnlOf(sims.normal,P).e,c).VaR,t:varES(pnlOf(sims.t,P).e,c).VaR,boot:varES(pnlOf(sims.boot,P).e,c).VaR,
+    param:P.V*(normInv(c)*sp*Math.sqrt(h)-mp*h),hist:-quantSorted(hs,1-c)*Math.sqrt(h)*P.V}));
+  // convergence
+  const conv=[];const N=pl.e.length;for(let f=0;f<=18;f++){const k=Math.round(500*Math.pow(N/500,f/18));const s=Float64Array.from(pl.e.subarray(0,k)).sort(),p=1-S.conf,se=1.96*Math.sqrt(k*p*(1-p));const idx=Math.max(1,Math.floor(p*k));conv.push({k,v:-s[idx-1],lo:-s[Math.min(k-1,Math.floor(idx+se))],hi:-s[Math.max(0,Math.floor(idx-1-se))]})}
+  // backtest
+  const W=250,z=normInv(S.conf),bt=[];let s1=0,s2=0;
+  for(let t=0;t<hr.length;t++){if(t>=W){const mu_=s1/W,v=Math.sqrt(Math.max(0,(s2-W*mu_*mu_)/(W-1)));bt.push({t,r:hr[t],v:-(z*v),br:hr[t]<-(z*v)})}s1+=hr[t];s2+=hr[t]*hr[t];if(t>=W){s1-=hr[t-W];s2-=hr[t-W]*hr[t-W]}}
+  // fan
+  const fan=paths(S.model,1200,S.fanD,P,rng);
+  R={E,P,pl,main,loc,contrib,hr,methods,conv,bt,fan,sp,ms:performance.now()-t0,ploss:pl.e.filter(v=>v<0).length/pl.e.length,mean:mean(pl.e)};
+  render();
+}
+
+// ---------- render
+function kpis(){
+  const r=R,V=S.val,fx=r.main.VaR-r.loc.VaR;
+  const k=[['Value-at-Risk',r.main.VaR,`${pct(r.main.VaR/V)} of portfolio · ${cf(S.conf)}, ${S.hor}d`,1],
+    ['Expected Shortfall',r.main.ES,`${pct(r.main.ES/V)} · average loss beyond VaR`,1],
+    ['Currency adds',fx,S.hedge===100?'fully hedged: no FX risk':`${pct(fx/r.main.VaR,0)} of VaR vs. a hedged book`,0],
+    ['Chance of any loss',null,`over ${S.hor} trading days`,0],
+    ['Expected P&L',r.mean,S.drift?'with historical drift':'drift off: small plus from lognormal skew',0]];
+  $('kpis').innerHTML=k.map(([l,v,s,h],i)=>`<div class="kpi${h?' hot':''}"><div class="l">${l}</div><div class="v">${i===3?pct(r.ploss):eur(v)}</div><div class="s">${s}</div></div>`).join('');
+  const modelName={normal:'GBM (normal)',t:`Student-t (ν = ${S.df})`,boot:'historical bootstrap'}[S.model];
+  $('title').innerHTML=`At ${cf(S.conf)} confidence, the ${eur(S.val)} portfolio should not lose more than <b>${eur(r.main.VaR)}</b> over ${S.hor} trading day${S.hor>1?'s':''}.`;drawTick();
+  $('dpill').textContent=SAMPLE?'Sample data: not real prices':LIVE?`Market data to ${DATA.dates[DATA.dates.length-1]}`:'Real data loaded';$('dpill').style.marginLeft='6px';$('dpill').className='pill'+(SAMPLE?'':' ok');
+  $('dline').textContent=`${r.E.m} daily returns${DATA.dates.length?` (${DATA.dates[0]} to ${DATA.dates[DATA.dates.length-1]})`:''} · ${modelName} · ${S.nsim.toLocaleString('en-US')} scenarios · computed in ${Math.round(r.ms)} ms`;
+  $('histS').textContent=`${S.nsim.toLocaleString('en-US')} scenarios, ${modelName}. Pink bars are the worst ${pct(1-S.conf,1)}: VaR marks where that tail starts, ES is its average. Hover for detail.`;
+  $('fanS').textContent=`1,200 simulated paths with daily shocks (${modelName}). Grey lines are individual scenarios; hover to read the percentiles on any day.`;
+}
+function drawTick(){
+  const px=DATA.px,n=px.length,k=Math.min(63,n-1);
+  $('tick').innerHTML=ALL.map((nm,i)=>{const s=px.slice(n-k-1).map(r=>r[i]),ch=s[s.length-1]/s[0]-1,lo=Math.min(...s),hi=Math.max(...s);
+    const up=i===5?ch<0:ch>=0,col=up?C.teal:C.pink;
+    const d=s.map((v,j)=>`${(j/(s.length-1)*100).toFixed(1)},${(24-(v-lo)/((hi-lo)||1)*22).toFixed(1)}`).join(' ');
+    return `<div>${i<5?SHORT[i]:'EUR/KRW'}<b>${s[s.length-1].toLocaleString('en-US',{maximumFractionDigits:i===5?2:0})} <span style="color:${col};font-weight:500;font-size:13px">${ch>=0?'+':'−'}${Math.abs(ch*100).toFixed(1)}%</span></b><svg viewBox="0 0 100 26" preserveAspectRatio="none"><polyline points="${d}" fill="none" stroke="${col}" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg></div>`}).join('');
+}
+function frame(id){const s=$(id);return {s,W:s.clientWidth,H:s.clientHeight}}
+
+function drawFan(){
+  if(!R)return;const {s,W,H}=frame('fan');if(W<10)return;
+  const Q=R.fan.Q,D=S.fanD,ml=W<520?48:62,mr=W<520?10:80,mt=10,mb=28;
+  const lo=Math.min(...Q[0],...R.fan.keep.flat()),hi=Math.max(...Q[5],...R.fan.keep.flat());
+  const y0=lo-(hi-lo)*.04,y1=hi+(hi-lo)*.04,X=d=>ml+(W-ml-mr)*d/D,Y=v=>mt+(H-mt-mb)*(1-(v-y0)/(y1-y0));
+  const band=(a,b)=>{let p='M'+a.map((v,d)=>`${X(d)},${Y(v)}`).join('L');p+='L'+b.map((v,d)=>`${X(D-d)},${Y(b[D-d])}`).join('L');return p+'Z'};
+  const line=a=>'M'+a.map((v,d)=>`${X(d).toFixed(1)},${Y(v).toFixed(1)}`).join('L');
+  let o='';
+  for(const t of ticks(y0,y1,5))o+=`<line class="gr" x1="${ml}" x2="${W-mr}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${ml-8}" y="${Y(t)+4}" text-anchor="end">${eurK(t)}</text>`;
+  for(const t of ticks(0,D,W<520?4:7))o+=`<text x="${X(t)}" y="${H-8}" text-anchor="middle">${t===0?'today':'day '+t}</text>`;
+  o+=`<line class="ax" x1="${ml}" x2="${W-mr}" y1="${Y(S.val)}" y2="${Y(S.val)}" stroke-dasharray="2 4"/>`;
+  o+=R.fan.keep.map(p=>`<path d="${line(p)}" fill="none" stroke="${C.muted}" stroke-opacity=".28" stroke-width="1"/>`).join('');
+  o+=`<path d="${band(Q[1],Q[5])}" fill="${C.violet}" fill-opacity=".28"/><path d="${band(Q[2],Q[4])}" fill="${C.violet}" fill-opacity=".55"/>`;
+  o+=`<path d="${line(Q[3])}" fill="none" stroke="${C.lilac}" stroke-width="2.4"/><path d="${line(Q[0])}" fill="none" stroke="${C.pink}" stroke-width="2" stroke-dasharray="6 4"/>`;
+  if(S.hor<=D){const x=X(S.hor);o+=`<line x1="${x}" x2="${x}" y1="${mt}" y2="${H-mb}" stroke="${C.pink}" stroke-opacity=".5"/><circle cx="${x}" cy="${Y(Q[0][S.hor])}" r="5" fill="${C.pink}" stroke="${C.panel}" stroke-width="2"/><text x="${x+8}" y="${mt+14}">VaR horizon</text>`}
+  if(W>=520){const lab=[[Q[5][D],'95th'],[Q[3][D],'median'],[Q[1][D],'5th'],[Q[0][D],'1st']];let last=-1e9;lab.sort((a,b)=>Y(a[0])-Y(b[0])).forEach(([v,t])=>{const y=Math.max(Y(v)+4,last+16);last=y;o+=`<text x="${W-mr+8}" y="${y}">${t} ${eurK(v)}</text>`})}
+  o+=`<line id="fx" y1="${mt}" y2="${H-mb}" stroke="${C.ink2}" stroke-opacity="0"/><rect x="${ml}" y="${mt}" width="${W-ml-mr}" height="${H-mt-mb}" fill="transparent" id="fanHit"/>`;
+  s.innerHTML=o;
+  const hit=$('fanHit'),cx=$('fx');
+  hit.onmousemove=e=>{const b=s.getBoundingClientRect(),d=Math.max(0,Math.min(D,Math.round((e.clientX-b.left-ml)/(W-ml-mr)*D)));cx.setAttribute('x1',X(d));cx.setAttribute('x2',X(d));cx.setAttribute('stroke-opacity',.6);
+    showTip(e,`<b>Day ${d}</b><br>95th: ${eur(Q[5][d])}<br>Median: ${eur(Q[3][d])}<br>5th: ${eur(Q[1][d])}<br><span style="color:#ff8cc0">1st: ${eur(Q[0][d])}</span>`)};
+  hit.onmouseleave=()=>{hideTip();cx.setAttribute('stroke-opacity',0)};
+}
+function drawHist(){
+  if(!R)return;const {s,W,H}=frame('hist');if(W<10)return;
+  const a=R.main.sorted,n=a.length,lo=a[Math.floor(n*.0008)],hi=a[Math.floor(n*.9992)],nb=W<520?36:64,bw=(hi-lo)/nb,cnt=new Array(nb).fill(0);
+  for(const v of a){const b=Math.floor((v-lo)/bw);if(b>=0&&b<nb)cnt[b]++}
+  const ml=46,mr=12,mt=34,mb=28,cm=Math.max(...cnt),X=v=>ml+(W-ml-mr)*(v-lo)/(hi-lo),Y=c=>mt+(H-mt-mb)*(1-c/cm);
+  let o='';for(const t of ticks(0,cm,4))o+=`<line class="gr" x1="${ml}" x2="${W-mr}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${ml-8}" y="${Y(t)+4}" text-anchor="end">${t>=1000?(t/1000)+'k':t}</text>`;
+  for(const t of ticks(lo,hi,W<520?4:8))o+=`<text x="${X(t)}" y="${H-8}" text-anchor="middle">${eurK(t)}</text>`;
+  const pw=(W-ml-mr)/nb;
+  cnt.forEach((c,i)=>{const x0=lo+i*bw,tail=x0+bw<=-R.main.VaR+1e-9;o+=`<rect data-i="${i}" x="${X(x0)+1}" y="${Y(c)}" width="${Math.max(1,pw-2)}" height="${Math.max(0,H-mb-Y(c))}" rx="2" fill="${tail?C.pink:C.violet}"/>`});
+  const xv=X(-R.main.VaR),xe=X(-R.main.ES);
+  o+=`<line x1="${xv}" x2="${xv}" y1="${mt-6}" y2="${H-mb}" stroke="${C.ink}" stroke-dasharray="5 4" stroke-width="1.5"/><text x="${xv+6}" y="${mt-12}" style="fill:${C.ink};font-weight:600">VaR ${eurK(R.main.VaR)}</text>`;
+  if(xe>ml+4)o+=`<line x1="${xe}" x2="${xe}" y1="${mt+14}" y2="${H-mb}" stroke="#ff8cc0" stroke-width="1.5"/><text x="${xe-6}" y="${mt+8}" text-anchor="end" style="fill:#ff8cc0;font-weight:600">ES ${eurK(R.main.ES)}</text>`;
+  o+=`<line class="ax" x1="${X(0)}" x2="${X(0)}" y1="${mt}" y2="${H-mb}"/>`;
+  s.innerHTML=o;
+  s.onmousemove=e=>{const i=e.target.dataset&&e.target.dataset.i;if(i===undefined){hideTip();return}const x0=lo+i*bw;showTip(e,`<b>${eur(x0)} to ${eur(x0+bw)}</b><br>${cnt[i].toLocaleString('en-US')} scenarios (${pct(cnt[i]/n,2)})`)};s.onmouseleave=hideTip;
+}
+function drawContrib(){
+  const c=R.contrib,lab=[...NAMES,'EUR/KRW'],mx=Math.max(...c.map(Math.abs));
+  const rows=c.map((v,i)=>({v,l:lab[i],fx:i===5})).sort((a,b)=>b.v-a.v);
+  $('contrib').innerHTML=rows.map(r=>`<div class="br"><span>${r.l}</span><div class="tr"><div class="fl" style="width:${(Math.abs(r.v)/mx*100).toFixed(1)}%;background:${r.fx?C.teal:r.v<0?C.muted:C.violet}"></div></div><span class="vl">${eur(r.v)} · ${pct(r.v/R.main.ES,0)}</span></div>`).join('')+
+    `<div class="br" style="border-top:1px solid var(--line);margin-top:6px;padding-top:9px"><b>Total = ES</b><span></span><b class="vl">${eur(c.reduce((a,b)=>a+b,0))}</b></div>`;
+  $('contT').textContent=`${rows[0].l} drives ${pct(rows[0].v/R.main.ES,0)} of the tail loss`;
+}
+const SC=[['Global sell-off',[-20,-20,-20,-20,-20,8]],['Chip downturn',[-25,-35,-5,-5,-5,3]],['Won crisis',[-15,-15,-15,-15,-15,25]],['Bank stress',[-8,-8,-8,-8,-22,4]],['Won rally',[5,5,5,5,5,-10]]];
+let custom=[-10,-10,-10,-10,-10,5];
+function stressPnl(sh){const w=R.P.w,a=1-R.P.H;let s=0;for(let i=0;i<5;i++)s+=w[i]*(1+sh[i]/100)/Math.pow(1+sh[5]/100,a);return S.val*(s-1)}
+function drawStress(){
+  const head=`<thead><tr><th>Scenario</th>${SHORT.map(n=>`<th class="n">${n}</th>`).join('')}<th class="n">EUR/KRW</th><th class="n">P&amp;L</th></tr></thead>`;
+  const row=(n,sh)=>{const p=stressPnl(sh);return `<td class="n ${p<0?'neg':'pos'}"><b>${eur(p)}</b><br><span style="font-size:13px">${pct(p/S.val)}</span></td>`};
+  $('stress').innerHTML=head+'<tbody>'+SC.map(([n,sh])=>`<tr><td>${n}</td>${sh.map(v=>`<td class="n">${v>0?'+':''}${v}%</td>`).join('')}${row(n,sh)}</tr>`).join('')+
+    `<tr><td>Your scenario</td>${custom.map((v,i)=>`<td class="n"><input type="number" step="1" id="cu${i}" value="${v}" aria-label="${ALL[i]} shock %"></td>`).join('')}<td class="n" id="cuP"></td></tr></tbody>`;
+  const upd=()=>{const p=stressPnl(custom);$('cuP').className='n '+(p<0?'neg':'pos');$('cuP').innerHTML=`<b>${eur(p)}</b><br><span style="font-size:13px">${pct(p/S.val)}</span>`};upd();
+  custom.forEach((_,i)=>$('cu'+i).addEventListener('input',e=>{custom[i]=+e.target.value||0;upd()}));
+}
+function drawBT(){
+  if(!R)return;const {s,W,H}=frame('bt');if(W<10)return;const bt=R.bt;
+  if(bt.length<20){s.innerHTML=`<text x="12" y="30">Needs more than 270 days of data to backtest.</text>`;$('btStat').innerHTML='';$('btS').textContent='';return}
+  const ml=50,mr=10,mt=10,mb=28,lo=Math.min(...bt.map(b=>Math.min(b.r,b.v))),hi=Math.max(...bt.map(b=>b.r)),T=bt.length;
+  const X=i=>ml+(W-ml-mr)*i/(T-1),Y=v=>mt+(H-mt-mb)*(1-(v-lo)/(hi-lo));
+  let o='';for(const t of ticks(lo,hi,5))o+=`<line class="gr" x1="${ml}" x2="${W-mr}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${ml-8}" y="${Y(t)+4}" text-anchor="end">${pct(t,0)}</text>`;
+  const dts=DATA.dates;const step=Math.ceil(T/(W<520?3:6));for(let i=0;i<T;i+=step)o+=`<text x="${X(i)}" y="${H-8}" text-anchor="${i===0?'start':'middle'}">${(dts[bt[i].t+1]||'').slice(0,7)}</text>`;
+  const bwid=Math.max(1,(W-ml-mr)/T*.7);
+  o+=`<path d="${bt.map((b,i)=>`M${X(i).toFixed(1)},${Y(0).toFixed(1)}V${Y(b.r).toFixed(1)}`).join('')}" stroke="${C.muted}" stroke-opacity=".7" stroke-width="${bwid}"/>`;
+  o+=`<path d="M${bt.map((b,i)=>`${X(i).toFixed(1)},${Y(b.v).toFixed(1)}`).join('L')}" fill="none" stroke="${C.pink}" stroke-width="1.8"/>`;
+  o+=bt.map((b,i)=>b.br?`<circle cx="${X(i)}" cy="${Y(b.r)}" r="4" fill="${C.pink}" stroke="${C.panel}" stroke-width="1.5"><title>${dts[b.t+1]}: ${pct(b.r,2)} vs VaR ${pct(b.v,2)}</title></circle>`:'').join('');
+  s.innerHTML=o;
+  const x=bt.filter(b=>b.br).length,p=1-S.conf,ph=x/T;
+  const LR=-2*((T-x)*Math.log(1-p)+x*Math.log(p))+2*((T-x)*(ph<1?Math.log(1-ph):0)+(x>0?x*Math.log(ph):0));
+  const pv=erfc(Math.sqrt(Math.max(0,LR)/2)),ok=pv>.05;
+  $('btT').textContent=ok?`Backtest: ${x} breaches against ${(T*p).toFixed(1)} expected, the model passes`:`Backtest: ${x} breaches against ${(T*p).toFixed(1)} expected, the model is rejected`;
+  $('btS').textContent=`Rolling 250-day parametric 1-day VaR at ${cf(S.conf)} vs. the next day's actual return, ${T} test days. A dot marks a day that lost more than VaR.`;
+  $('btStat').innerHTML=[['Test days',T],['Breaches',x],['Expected',(T*p).toFixed(1)],['Breach rate',pct(ph,2)],['Kupiec p-value',pv.toFixed(3)],['Verdict (5% level)',ok?'Pass':'Reject']].map(([l,v])=>`<div>${l}<b>${v}</b></div>`).join('');
+}
+const MT=[['normal','GBM (normal)',C.violet],['t','Student-t',C.pink],['boot','Bootstrap',C.teal],['param','Parametric',C.amber],['hist','Historical √h',C.blue]];
+function drawCmp(){
+  if(!R)return;const {s,W,H}=frame('cmp');if(W<10)return;
+  $('cmpLeg').innerHTML=MT.map(([k,l,c])=>`<span><i style="background:${c}"></i>${l}</span>`).join('');
+  const M=R.methods,all=M.flatMap(m=>MT.map(t=>m[t[0]])),lo=Math.min(...all)*.9,hi=Math.max(...all)*1.04,ml=64,mr=14,mt=6,mb=28,rh=(H-mt-mb)/M.length;
+  const X=v=>ml+(W-ml-mr)*(v-lo)/(hi-lo);let o='';
+  for(const t of ticks(lo,hi,W<520?3:6))o+=`<line class="gr" x1="${X(t)}" x2="${X(t)}" y1="${mt}" y2="${H-mb}"/><text x="${X(t)}" y="${H-8}" text-anchor="middle">${eurK(t)}</text>`;
+  M.forEach((m,r)=>{const y=mt+rh*(r+.5);o+=`<text x="${ml-10}" y="${y+4}" text-anchor="end" style="fill:${C.ink}">${cf(m.c)}</text><line class="ax" x1="${ml}" x2="${W-mr}" y1="${y}" y2="${y}"/>`;
+    MT.forEach(([k,l,c],j)=>{o+=`<circle cx="${X(m[k])}" cy="${y+(j-2)*4}" r="7" fill="${c}" stroke="${C.panel}" stroke-width="2"><title>${l} at ${cf(m.c)}: ${eur(m[k])}</title></circle>`})});
+  s.innerHTML=o;
+  const m99=M[2],sp=Math.max(...MT.map(t=>m99[t[0]]))-Math.min(...MT.map(t=>m99[t[0]]));
+  $('cmpT').textContent=`At 99%, the five methods differ by ${eur(sp)}`;
+}
+function drawConv(){
+  if(!R)return;const {s,W,H}=frame('conv');if(W<10)return;const cv=R.conv;
+  const ml=56,mr=14,mt=10,mb=28,lo=Math.min(...cv.map(c=>c.lo)),hi=Math.max(...cv.map(c=>c.hi)),pad=(hi-lo)*.06;
+  const X=k=>ml+(W-ml-mr)*Math.log(k/cv[0].k)/Math.log(cv[cv.length-1].k/cv[0].k),Y=v=>mt+(H-mt-mb)*(1-(v-lo+pad)/(hi-lo+2*pad));
+  let o='';for(const t of ticks(lo-pad,hi+pad,4))o+=`<line class="gr" x1="${ml}" x2="${W-mr}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${ml-8}" y="${Y(t)+4}" text-anchor="end">${eurK(t)}</text>`;
+  for(const k of [500,1000,5000,20000,50000].filter(k=>k<=cv[cv.length-1].k))o+=`<text x="${X(k)}" y="${H-8}" text-anchor="middle">${k>=1000?k/1000+'k':k}</text>`;
+  o+=`<path d="M${cv.map(c=>`${X(c.k)},${Y(c.hi)}`).join('L')}L${[...cv].reverse().map(c=>`${X(c.k)},${Y(c.lo)}`).join('L')}Z" fill="${C.violet}" fill-opacity=".3"/>`;
+  o+=`<path d="M${cv.map(c=>`${X(c.k)},${Y(c.v)}`).join('L')}" fill="none" stroke="${C.pink}" stroke-width="2.2"/>`;
+  const l=cv[cv.length-1];o+=`<circle cx="${X(l.k)}" cy="${Y(l.v)}" r="5" fill="${C.pink}" stroke="${C.panel}" stroke-width="2"/><text x="${X(l.k)-8}" y="${Y(l.hi)-8}" text-anchor="end">±${eurK((l.hi-l.lo)/2)} at ${S.nsim/1000}k</text>`;
+  s.innerHTML=o;
+}
+function drawCorr(){
+  if(!R)return;const {s,W,H}=frame('corr');if(W<10)return;const c=R.E.corr,lab=W<520?['SEC','SKH','HMC','NAV','KB','FX']:[...SHORT,'EUR/KRW'];
+  const ml=W<520?36:76,mt=22,sz=Math.min((W-ml-8)/6,(H-mt-8)/6);
+  const col=v=>{const t=Math.abs(v),base=v>=0?[146,115,230]:[229,87,157],n=[42,34,51];return `rgb(${n.map((x,i)=>Math.round(x+(base[i]-x)*t)).join(',')})`};
+  let o='';lab.forEach((l,i)=>{o+=`<text x="${ml-8}" y="${mt+sz*(i+.5)+4}" text-anchor="end">${l}</text><text x="${ml+sz*(i+.5)}" y="${mt-8}" text-anchor="middle">${['Sams.','Hynix','Hyund.','NAVER','KB','FX'][i]}</text>`});
+  c.forEach((r,i)=>r.forEach((v,j)=>{o+=`<rect data-i="${i}" data-j="${j}" x="${ml+sz*j+1}" y="${mt+sz*i+1}" width="${sz-2}" height="${sz-2}" rx="4" fill="${col(v)}"/>`;if(sz>34)o+=`<text x="${ml+sz*(j+.5)}" y="${mt+sz*(i+.5)+4}" text-anchor="middle" style="fill:#fff;stroke:none;pointer-events:none">${v.toFixed(2)}</text>`}));
+  s.innerHTML=o;s.onmousemove=e=>{const d=e.target.dataset;if(d.i===undefined){hideTip();return}showTip(e,`<b>${ALL[d.i]} × ${ALL[d.j]}</b><br>ρ = ${c[d.i][d.j].toFixed(3)}`)};s.onmouseleave=hideTip;
+}
+function drawStats(){
+  const E=R.E,w=R.P.w,last=DATA.px[DATA.px.length-1];
+  $('statS').textContent=`Annualised from ${E.m} daily log returns. Prices in KRW; EUR/KRW in won per euro.`;
+  $('stats').innerHTML=`<thead><tr><th>Factor</th><th class="n">Weight</th><th class="n">Volatility</th><th class="n">Mean return</th><th class="n">Last price</th></tr></thead><tbody>`+
+    ALL.map((n,i)=>`<tr><td>${n}</td><td class="n">${i<5?pct(w[i]):'–'}</td><td class="n">${pct(E.sd[i]*Math.sqrt(252))}</td><td class="n">${pct(E.mu[i]*252)}</td><td class="n">${last[i].toLocaleString('en-US',{maximumFractionDigits:i===5?2:0})}</td></tr>`).join('')+
+    `<tr><td><b>Portfolio (EUR)</b></td><td class="n">100%</td><td class="n"><b>${pct(R.sp*Math.sqrt(252))}</b></td><td class="n">${pct(mean(R.hr)*252)}</td><td class="n"></td></tr></tbody>`;
+}
+function render(){kpis();drawFan();drawHist();drawContrib();drawStress();drawBT();drawCmp();drawConv();drawCorr();drawStats();$('busy').textContent='';$('cvS').previousElementSibling.textContent=`Is ${S.nsim/1000}k simulations enough?`}
+
+// ---------- controls
+function seg(id,key,num=true){const el=$(id);const set=()=>el.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(String(S[key])===b.dataset.v)));set();
+  el.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;S[key]=num?+b.dataset.v:b.dataset.v;set();sync();if(key==='fanD'){const rng=rng32(S.seed+1);R.fan=paths(S.model,1200,S.fanD,R.P,rng);drawFan();save()}else go()})}
+function sync(){
+  $('df').value=S.df;$('dfV').textContent=S.df;$('dfBox').style.display=S.model==='t'?'':'none';
+  $('val').value=S.val;$('hor').value=S.hor;$('horV').textContent=S.hor+' day'+(S.hor>1?'s':'');
+  $('hedge').value=S.hedge;$('hedgeV').textContent=S.hedge+'%';$('vm').value=S.vm;$('vmV').textContent='×'+(+S.vm).toFixed(1);
+  $('cs').value=S.cs;$('csV').textContent=S.cs?`λ = ${(+S.cs).toFixed(2)}`:'off';$('drift').checked=S.drift;$('seed').value=S.seed;
+  $('modelHint').textContent={normal:'Correlated geometric Brownian motion: normal log returns.',t:'Same correlations, fat-tailed shocks: joint crashes are more likely.',boot:'Resamples real past days. No distribution assumed.'}[S.model];
+  const tw=S.w.reduce((a,b)=>a+b,0)||1;S.w.forEach((v,i)=>{$('w'+i).value=v;$('wv'+i).textContent=pct(v/tw,0)});
+}
+$('wts').innerHTML=NAMES.map((n,i)=>`<div class="field"><div class="row"><label for="w${i}">${n}</label><b id="wv${i}"></b></div><input type="range" id="w${i}" min="0" max="100" step="1"></div>`).join('');
+let tmr=null;function go(){save();$('busy').textContent='Simulating…';clearTimeout(tmr);tmr=setTimeout(()=>{try{run()}catch(e){$('busy').textContent='Error: '+e.message}},120)}
+seg('model','model',false);seg('conf','conf');seg('nsim','nsim');seg('fanD','fanD');
+[['df','df'],['hor','hor'],['hedge','hedge'],['vm','vm'],['cs','cs']].forEach(([id,k])=>$(id).addEventListener('input',e=>{S[k]=+e.target.value;sync();go()}));
+$('val').addEventListener('change',e=>{S.val=Math.max(1000,+e.target.value||DEF.val);sync();go()});
+$('seed').addEventListener('change',e=>{S.seed=Math.max(1,Math.round(+e.target.value)||1);sync();go()});
+$('drift').addEventListener('change',e=>{S.drift=e.target.checked;go()});
+NAMES.forEach((_,i)=>$('w'+i).addEventListener('input',e=>{S.w[i]=+e.target.value;if(S.w.every(v=>v===0))S.w[i]=1;sync();go()}));
+$('eqw').onclick=()=>{S.w=[20,20,20,20,20];sync();go()};$('rsw').onclick=()=>{S.w=[...DEF.w];sync();go()};
+$('redraw').onclick=()=>{S.seed=1+Math.floor(Math.random()*99999);sync();go()};
+$('resetAll').onclick=()=>{S=JSON.parse(JSON.stringify(DEF));['model','conf','nsim','fanD'].forEach(id=>$(id).querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(String(S[id])===b.dataset.v))));sync();go()};
+$('copy').onclick=async()=>{if(!R)return;const t=[`KOSPI portfolio risk (${SAMPLE?'SAMPLE DATA':'real data'})`,`Portfolio ${eur(S.val)}, weights ${NAMES.map((n,i)=>n+' '+pct(R.P.w[i],0)).join(', ')}, hedge ${S.hedge}%`,`Model: ${S.model}, ${S.nsim} sims, ${cf(S.conf)}, ${S.hor}-day horizon`,`VaR ${eur(R.main.VaR)}, ES ${eur(R.main.ES)}, currency adds ${eur(R.main.VaR-R.loc.VaR)}, P(loss) ${pct(R.ploss)}`].join('\n');
+  try{await navigator.clipboard.writeText(t);$('busy').textContent='Results copied.'}catch(e){$('busy').textContent='Copy was blocked by the browser.'}};
+
+// ---------- data upload
+function parseCSV(txt){
+  const lines=txt.trim().split(/\r?\n/).filter(l=>l.trim());if(lines.length<61)throw new Error('Need at least 60 rows of prices.');
+  const sep=lines[0].includes(';')&&!lines[0].includes(',')?';':',';
+  const rows=lines.slice(1).map(l=>l.split(sep).map(x=>x.trim().replace(/^"|"$/g,''))).filter(r=>r.length>=7);
+  const out=rows.map(r=>({d:r[0],p:r.slice(1,7).map(Number)})).filter(r=>r.p.every(v=>isFinite(v)&&v>0));
+  if(out.length<60)throw new Error('Could not read 60 rows with 6 positive prices each. Check the column order.');
+  out.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0);
+  return {dates:out.map(r=>r.d),px:out.map(r=>r.p)};
+}
+function useFile(f){if(!f)return;const rd=new FileReader();rd.onload=()=>{try{DATA=parseCSV(rd.result);SAMPLE=false;$('ferr').textContent='';go();window.scrollTo({top:0,behavior:'smooth'})}catch(e){$('ferr').textContent=e.message}};rd.readAsText(f)}
+$('file').addEventListener('change',e=>useFile(e.target.files[0]));
+const dz=$('drop');['dragover','dragenter'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('on')}));['dragleave','drop'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('on')}));
+dz.addEventListener('drop',e=>useFile(e.dataTransfer.files[0]));
+$('useSample').onclick=()=>{DATA=sample();SAMPLE=true;go()};
+
+const tog=(sel,v)=>document.querySelectorAll(sel).forEach(d=>d.open=v);$('mOpen').onclick=()=>tog('#method .method details',true);$('mClose').onclick=()=>tog('#method .method details',false);$('sOpen').onclick=()=>tog('#story .method details',true);$('sClose').onclick=()=>tog('#story .method details',false);
+const ro=new ResizeObserver(()=>{if(R){drawFan();drawHist();drawBT();drawCmp();drawConv();drawCorr()}});
+['fan','hist','bt','cmp','conv','corr'].forEach(id=>ro.observe($(id)));
+DATA=sample();sync();run();
+fetch('data/kospi_prices.csv',{cache:'no-store'}).then(r=>r.ok?r.text():Promise.reject()).then(t=>{const d=parseCSV(t);if(!/sample/i.test(t.slice(0,200))){DATA=d;SAMPLE=false;LIVE=true;go()}}).catch(()=>{});
+}
+</script>
+</body>
+</html>
