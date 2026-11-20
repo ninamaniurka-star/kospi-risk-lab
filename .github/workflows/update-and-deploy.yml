@@ -38,7 +38,7 @@ jobs:
       - name: Collect site files
         run: |
           mkdir -p _site/data
-          cp index.html _site/
+          cp index.html preview.png _site/
           cp data/kospi_prices.csv _site/data/ 2>/dev/null || true
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
