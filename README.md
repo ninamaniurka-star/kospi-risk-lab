@@ -23,6 +23,6 @@ A Monte Carlo Value-at-Risk model for a €100,000 portfolio of five KOSPI stock
 | `.github/workflows/` | Updates the prices every weekday and republishes the site |
 
 ## Data
-Prices come from Yahoo Finance (tickers 005930.KS, 000660.KS, 005380.KS, 035420.KS, 105560.KS, EURKRW=X) and refresh automatically each weekday. Educational project, not investment advice.
+Prices come from Yahoo Finance (tickers 005930.KS, 000660.KS, 005380.KS, 035420.KS, 105560.KS, EURKRW=X) and refresh automatically each weekday after the Korean market closes, and the site republishes itself. Educational project, not investment advice.
 
 By Nina Maniurka
